@@ -328,7 +328,7 @@ def conditions(ind, cols, i, regime_ok):
 def why_text(cd):
     return [
         "Mercato in regime rialzista: Bitcoin sopra la sua media a 200 candele",
-        "Trend rialzista: media a 50 sopra la media a 200 e prezzo sopra entrambe",
+        "Trend rialzista: media a 50 sopra la media a 200 e prezzo sopra la media a 200",
         "Trend con forza: ADX %.0f (soglia %d), compratori in vantaggio" % (cd["adx"], STRAT["adx_min"]),
         "Ripartenza dopo un calo: RSI risalito a %.0f dopo essere sceso sotto %d" % (cd["rsi"], STRAT["rsi_pullback"]),
         "Volume %s volte la media recente" % it_num(cd["volr"], 1),
@@ -1519,7 +1519,7 @@ const D = /*__DATA__*/null;
       "<details><summary>Cosa fa questa pagina</summary><div class=\"body\"><p>Ogni 4 ore, quando si chiude una candela, il programma scarica i prezzi di " + D.market.n_total + " crypto da più exchange, li confronta, calcola gli indicatori e controlla se c'è un'occasione di acquisto. Non compra e non vende nulla al posto tuo: ti dice cosa fare e dove mettere stop loss e take profit.</p><p>Un segnale vale solo se almeno due fonti indipendenti danno lo stesso prezzo. Se discordano, o ce n'è una sola, la moneta resta in sola osservazione.</p></div></details>" +
       "<details><summary>Quando scatta un segnale</summary><div class=\"body\"><p>Devono essere vere tutte e cinque, sull'ultima candela chiusa:</p><ol style=\"margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px\">" +
       "<li>Bitcoin è sopra la sua media a " + s.ema_slow + " candele (il mercato nel suo insieme sale).</li>" +
-      "<li>La moneta è in trend rialzista: media a " + s.ema_fast + " sopra media a " + s.ema_slow + ", prezzo sopra entrambe.</li>" +
+      "<li>La moneta è in trend rialzista: media a " + s.ema_fast + " sopra media a " + s.ema_slow + ", e il prezzo sopra la media a " + s.ema_slow + ".</li>" +
       "<li>Il trend ha forza: ADX almeno " + s.adx_min + " e compratori in vantaggio.</li>" +
       "<li>Dopo un calo (RSI sceso a " + s.rsi_pullback + " o meno nelle ultime " + s.pb_lookback + " candele) il prezzo riparte: RSI sale sopra " + s.rsi_resume + ".</li>" +
       "<li>Il volume è almeno nella media recente.</li></ol><p>Si compra solo al rialzo, come su Revolut X: niente vendite allo scoperto.</p></div></details>" +
