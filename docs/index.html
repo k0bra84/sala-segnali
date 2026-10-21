@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sala segnali</title>
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sala segnali">
+<meta name="theme-color" content="#f3f4f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1317" media="(prefers-color-scheme: dark)">
+<style>
+/* Strumento da sala operativa: grafite neutro, ambra per cio' che richiede attenzione, verde/rosso solo per esito. */
+:root{
+  --bg:#f3f4f5; --panel:#ffffff; --panel2:#eceef0; --line:#d9dde2; --fg:#12161b; --muted:#566170;
+  --accent:#a76500; --accent-bg:#fbf0d9; --pos:#157347; --pos-bg:#dff3e8; --neg:#b3321f; --neg-bg:#f8e0dc;
+  --warn:#8a5a00; --warn-bg:#f7ecd0; --chart:#12161b; --chart-fill:rgba(18,22,27,.07);
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1317; --panel:#171c22; --panel2:#1f252c; --line:#2a313a; --fg:#e8ebef; --muted:#97a1ae;
+    --accent:#f0b429; --accent-bg:#2c2412; --pos:#4cc38a; --pos-bg:#14301f; --neg:#ef7a69; --neg-bg:#35191a;
+    --warn:#e9b44c; --warn-bg:#2c2412; --chart:#e8ebef; --chart-fill:rgba(232,235,239,.08);
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--font);padding-inline:16px;padding-block:20px 56px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1{font-size:26px;line-height:1.15;margin:0;letter-spacing:-.01em;font-weight:700}
+h2{font-size:12px;line-height:1.2;margin:0 0 12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:650;font-family:var(--mono)}
+h3{font-size:15px;margin:0;font-weight:650}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.head{display:flex;flex-direction:column;gap:6px}
+.demo{background:var(--neg-bg);color:var(--neg);border:1px solid var(--neg);padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600}
+.market{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:6px}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:650;border:1px solid transparent;white-space:nowrap}
+.pill.signal{background:var(--pos-bg);color:var(--pos)}
+.pill.wait{background:var(--panel2);color:var(--muted)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.nodata{background:var(--neg-bg);color:var(--neg)}
+.pill.accent{background:var(--accent-bg);color:var(--accent)}
+
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label,.field .lab{font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:.04em;text-transform:uppercase}
+.field input,.field select{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:40px;width:100%}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg)}
+.seg button{flex:1;background:none;border:0;padding:8px 10px;min-height:40px;cursor:pointer;color:var(--muted);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card.fresh{border-color:var(--accent)}
+.card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.sym{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.kv{display:flex;flex-direction:column;gap:1px;min-width:0}
+.kv .k{font-size:12px;color:var(--muted)}
+.kv .v{font-size:17px;font-weight:650;overflow-wrap:anywhere}
+.step{background:var(--panel2);border-radius:6px;padding:9px 11px;font-size:13.5px}
+details{border-top:1px solid var(--line);padding-top:10px}
+details summary{cursor:pointer;font-weight:600;font-size:14px}
+details ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.warnbox{background:var(--accent-bg);color:var(--accent)}
+.phase{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.phase .top{display:flex;gap:6px 12px;align-items:center;flex-wrap:wrap}
+.phase .name{font-size:19px;font-weight:700}
+.phase .tiles{margin:0}
+.empty{background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.groups{display:flex;flex-direction:column;gap:22px}
+.sub{font-size:15px;font-weight:700;margin:0 0 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sub + .small{margin-bottom:10px}
+.btn{min-height:44px;padding:8px 16px;border-radius:8px;border:1px solid var(--fg);background:var(--fg);color:var(--bg);font-weight:650;cursor:pointer;align-self:flex-start}
+.btn.ghost{background:none;color:var(--fg);border-color:var(--line);font-weight:600}
+.btn.sm{min-height:38px;padding:6px 12px;font-size:13.5px}
+details.late{border-top:0;padding-top:0}
+details.late summary{padding:6px 0}
+details.late .list{margin-top:8px}
+
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:600;color:var(--muted);min-height:38px}
+.tabs button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font-size:21px;font-weight:700;overflow-wrap:anywhere}
+.tile .s{font-size:12.5px;color:var(--muted)}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 6px 2px;margin-bottom:12px}
+.chart svg{display:block;width:100%;height:auto}
+.axis{fill:var(--muted);font-size:11px;font-family:var(--mono)}
+.gridl{stroke:var(--line);stroke-width:1}
+.base{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+.line{fill:none;stroke:var(--chart);stroke-width:2;stroke-linejoin:round}
+.area{fill:var(--chart-fill);stroke:none}
+.dot{fill:var(--accent);stroke:var(--panel);stroke-width:2}
+.bar{height:8px;background:var(--panel2);border-radius:999px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:var(--accent)}
+
+.scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;color:var(--muted);font-weight:600;font-family:var(--mono);letter-spacing:.04em;text-transform:uppercase}
+td.r,th.r{text-align:right}
+table.compact{min-width:0;font-size:13px}
+table.compact th,table.compact td{white-space:normal;padding:8px 7px;vertical-align:top}
+table.compact th{font-size:10.5px;letter-spacing:.02em}
+tr:last-child td{border-bottom:0}
+
+.list{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .l{min-width:0}
+.row .rt{text-align:right}
+.row .st{grid-column:1/-1;display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)}
+.row .st .pill{flex:none}
+
+.guide{display:flex;flex-direction:column;gap:10px}
+.guide details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.guide details[open]{padding-bottom:14px}
+.guide .body{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.guide dt{font-weight:650;margin-top:6px}
+.guide dd{margin:0;color:var(--muted)}
+.foot{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <h1>Sala segnali</h1>
+    <div class="muted small" id="meta"></div>
+    <div id="demo"></div>
+    <div class="market" id="market"></div>
+  </header>
+
+  <div class="controls" aria-label="Impostazioni">
+    <div class="field"><span class="lab">Valuta</span>
+      <div class="seg" role="group" aria-label="Valuta">
+        <button type="button" data-cur="EUR" aria-pressed="false">Euro</button>
+        <button type="button" data-cur="USD" aria-pressed="false">Dollari</button>
+      </div>
+    </div>
+    <div class="field"><label for="cap">Capitale</label><input id="cap" type="number" inputmode="decimal" min="0" step="50" value="1000"></div>
+    <div class="field"><label for="prof">Rischio</label>
+      <select id="prof">
+        <option value="basso">Basso</option>
+        <option value="medio">Medio</option>
+        <option value="alto">Alto</option>
+      </select>
+    </div>
+  </div>
+
+  <main id="app"></main>
+</div>
+
+<script>
+const D = {"generated":1792610023063,"forward_start":1792598400000,"version":"v1","fx":1.1234,"capital_eur":1000,"costs":{"fee":0.001,"slip":0.001},"strat":{"ema_fast":50,"ema_slow":200,"rsi_len":14,"rsi_pullback":40,"rsi_resume":45,"pb_lookback":8,"adx_len":14,"adx_min":20,"atr_len":14,"vol_len":20,"vol_ratio":1.0,"sl_atr":2.0,"tp_atr":4.0,"be_trigger":1.5,"trail_trigger":2.5,"trail_lock":1.0,"max_hold":42,"cooldown":6,"max_risk":0.2,"warmup":210},"profiles":{"basso":{"risk":0.005,"max_pos":3,"max_size":0.15},"medio":{"risk":0.01,"max_pos":5,"max_size":0.25},"alto":{"risk":0.02,"max_pos":8,"max_size":0.35}},"market":{"btc_ok":true,"n_up":8,"n_total":28,"n_checked":26,"phase":"rialzo_forte","phase_hv":false,"btc_adx":27.817791454070594,"btc_dist":0.029968023021195167,"btc_atr_pct":0.009695954550605651},"sources":{"kraken":{"ok":28,"fail":0,"note":""},"binance":{"ok":25,"fail":3,"note":""},"coinbase":{"ok":25,"fail":3,"note":""}},"history_days":{"min":120.0,"max":499.8333333333333},"flag":{"ratio":3.0,"base":20,"recent":3},"phase_names":{"rialzo_forte":"Rialzo con forza","rialzo_debole":"Rialzo debole","transizione":"Fase di transizione","ribasso_debole":"Ribasso debole","ribasso_forte":"Ribasso con forza"},"phase_cfg":{"adx_strong":20,"vol_window":180,"vol_min_hist":60,"vol_pct":0.8},"entry_cfg":{"max_bars":3,"up_atr":0.5,"down_atr":1.0},"coins":[{"sym":"BTC","name":"Bitcoin","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.7209763460930465,"price":84540.01,"chg":0.023267779971550828,"bars":2999,"t_last":1792598400000,"rsi":68.84165118793418,"adx":27.817791454070594,"trend":true,"status":"In attesa: serve un calo seguito da una ripartenza (RSI 69)","kind":"wait"},{"sym":"ETH","name":"Ether","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":true,"spike_ratio":3.527570688812792,"price":2512.54,"chg":0.029240197283258773,"bars":2999,"t_last":1792598400000,"rsi":65.61254885567163,"adx":22.911235323233274,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"XRP","name":"XRP","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.324581794384647,"price":1.3806,"chg":0.04401088929219599,"bars":2999,"t_last":1792598400000,"rsi":70.45987472834544,"adx":32.2493607661351,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"BNB","name":"BNB","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.432471228386784,"price":749.53,"chg":0.020810350697991087,"bars":2999,"t_last":1792598400000,"rsi":68.63680026591916,"adx":25.37362717246989,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"DOGE","name":"Dogecoin","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.7924277716043657,"price":0.08347,"chg":0.035736443727509615,"bars":2999,"t_last":1792598400000,"rsi":65.52383413637196,"adx":35.247875363272314,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"TRX","name":"Tron","verdict":"ok","srcs":["binance","kraken"],"prim":"binance","spike":false,"spike_ratio":1.5929306982455487,"price":0.332,"chg":0.0030211480362538623,"bars":2999,"t_last":1792598400000,"rsi":49.66034994552372,"adx":9.068470492441278,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"LINK","name":"Chainlink","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.3943505335346305,"price":12.699,"chg":0.041499220864430475,"bars":2999,"t_last":1792598400000,"rsi":64.31584288494672,"adx":25.704314677520276,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"BCH","name":"Bitcoin Cash","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.4847262847874054,"price":289.7,"chg":0.04660404624277459,"bars":2999,"t_last":1792598400000,"rsi":64.14985701734867,"adx":17.33501178515983,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"ETC","name":"Ethereum Classic","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":1.837155711598231,"price":8.18,"chg":0.038071065989847774,"bars":2999,"t_last":1792598400000,"rsi":65.901815650416,"adx":30.497179392582016,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"ATOM","name":"Cosmos","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":1.8789300936629116,"price":1.765,"chg":0.005698005698005604,"bars":2999,"t_last":1792598400000,"rsi":53.86340453883647,"adx":19.58740366349261,"trend":true,"status":"In attesa: trend troppo debole (ADX basso)","kind":"wait"},{"sym":"NEAR","name":"NEAR","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.46219347839174,"price":5.386,"chg":0.11028653885796746,"bars":2999,"t_last":1792598400000,"rsi":64.29628963851437,"adx":17.816920404959014,"trend":true,"status":"In attesa: trend troppo debole (ADX basso)","kind":"wait"},{"sym":"TON","name":"Toncoin","verdict":"ok","srcs":["coinbase","kraken"],"prim":"kraken","spike":true,"spike_ratio":4.4653410055505915,"price":1.359,"chg":0.01645474943904257,"bars":720,"t_last":1792598400000,"rsi":52.84958234033097,"adx":25.63134744116545,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"ARB","name":"Arbitrum","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":1.619363977081709,"price":0.1968,"chg":0.04071919619249087,"bars":2999,"t_last":1792598400000,"rsi":57.33917564886813,"adx":20.002263055644097,"trend":true,"status":"In attesa: serve un calo seguito da una ripartenza (RSI 57)","kind":"wait"},{"sym":"OP","name":"Optimism","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.2678539186494366,"price":0.1319,"chg":0.004569687738004591,"bars":2999,"t_last":1792598400000,"rsi":53.5356706465868,"adx":24.25262865118365,"trend":true,"status":"In attesa: serve un calo seguito da una ripartenza (RSI 54)","kind":"wait"},{"sym":"IMX","name":"Immutable","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":1.274805938495748,"price":0.1581,"chg":0.020000000000000018,"bars":2999,"t_last":1792598400000,"rsi":53.956102504119116,"adx":32.222949935591046,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"SEI","name":"SEI","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.792084925912491,"price":0.0631,"chg":0.023022049286640867,"bars":2999,"t_last":1792598400000,"rsi":55.84056775193557,"adx":16.843268351406678,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"TAO","name":"Bittensor","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.674049992202558,"price":277.8,"chg":0.028507960014809264,"bars":2999,"t_last":1792598400000,"rsi":57.08994338802923,"adx":19.332307976064843,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"FET","name":"Fetch.ai","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.9751888242080673,"price":0.2003,"chg":0.02612704918032782,"bars":2999,"t_last":1792598400000,"rsi":56.73424153524771,"adx":29.44873905270228,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"RNDR","name":"Render","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.3766672664209083,"price":1.917,"chg":0.03509719222462193,"bars":2999,"t_last":1792598400000,"rsi":59.61857877510799,"adx":23.938783210652907,"trend":true,"status":"In attesa: serve un calo seguito da una ripartenza (RSI 60)","kind":"wait"},{"sym":"FIL","name":"Filecoin","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":1.5809606347974798,"price":1.0645,"chg":0.023164167627835353,"bars":2999,"t_last":1792598400000,"rsi":52.557899482946,"adx":15.485604414677201,"trend":true,"status":"In attesa: trend troppo debole (ADX basso)","kind":"wait"},{"sym":"GRT","name":"The Graph","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":2.0055860477706595,"price":0.02501,"chg":0.027104722792607783,"bars":2999,"t_last":1792598400000,"rsi":57.66602672184121,"adx":20.508001602083688,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"ENA","name":"Ethena","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":true,"spike_ratio":3.330718807631844,"price":0.2215,"chg":0.1657894736842105,"bars":2999,"t_last":1792598400000,"rsi":73.33344172755766,"adx":31.500532612567167,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"CELO","name":"Celo","verdict":"ok","srcs":["binance","kraken"],"prim":"binance","spike":false,"spike_ratio":2.006261330253428,"price":0.08687,"chg":0.032691393247741285,"bars":2999,"t_last":1792598400000,"rsi":61.371060338434326,"adx":28.255371156691186,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"ANKR","name":"Ankr","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":true,"spike_ratio":4.439415866260037,"price":0.00434,"chg":0.03827751196172269,"bars":2999,"t_last":1792598400000,"rsi":58.83058584371102,"adx":29.03216418073485,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"MATIC","name":"Polygon","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":1.9362426612499588,"price":0.09748,"chg":0.03923240938166317,"bars":2999,"t_last":1792598400000,"rsi":63.93503979413609,"adx":25.715886076133845,"trend":false,"status":"In attesa: la moneta non è in trend rialzista","kind":"wait"},{"sym":"FTM","name":"Fantom / Sonic","verdict":"ok","srcs":["binance","coinbase","kraken"],"prim":"binance","spike":false,"spike_ratio":0.7939265197541665,"price":0.05708,"chg":0.013314397301615433,"bars":2999,"t_last":1792598400000,"rsi":54.9289592770712,"adx":28.40929611991632,"trend":true,"status":"In attesa: serve un calo seguito da una ripartenza (RSI 55)","kind":"wait"},{"sym":"MEW","name":"cat in a dogs world","verdict":"single","srcs":["kraken"],"prim":"kraken","spike":true,"spike_ratio":52.78774747696194,"price":0.00048,"chg":0.11888111888111896,"bars":720,"t_last":1792598400000,"rsi":64.5190597441426,"adx":39.81228109954317,"trend":false,"status":"Una sola fonte: solo osservazione, nessun segnale","kind":"warn"},{"sym":"GST","name":"Green Satoshi Token","verdict":"discordant","srcs":["coinbase","kraken"],"prim":"kraken","spike":true,"spike_ratio":448.39417507647113,"price":0.00081,"chg":-0.18181818181818188,"bars":720,"t_last":1792598400000,"rsi":21.957785601022692,"adx":26.318485451144387,"trend":false,"status":"Le fonti non concordano sul prezzo: segnali bloccati","kind":"warn"}],"signals":[],"open":[],"backtest":{"stats":{"n":37,"win_rate":0.35135135135135137,"avg_r":-0.010612725168795006,"avg_ret":-0.00011752337749788806,"pf":0.994639540831555,"avg_bars":13.567567567567568},"profiles":{"basso":{"equity":[[1753776000000,1.0],[1753804800000,0.995],[1755892800000,1.003862285907726],[1755921600000,1.003862285907726],[1756008000000,1.0058909198583599],[1758268800000,1.0058909198583599],[1759593600000,1.008018431174209],[1759608000000,1.010019417785326],[1760011200000,1.0074320350247599],[1760112000000,1.0023819379358332],[1760112000000,1.0023819379358332],[1768694400000,1.0043624260931452],[1776196800000,0.9993406139626795],[1776571200000,0.9950500858322676],[1778860800000,0.9911702134625259],[1778860800000,0.9861949630333645],[1778860800000,0.9812197126042032],[1787184000000,0.9844358730851548],[1788134400000,0.979513693719729],[1788537600000,0.9746161252511303],[1788537600000,0.9746161252511303],[1788724800000,0.9832014208579607],[1789315200000,0.9921447843761971],[1789444800000,0.9921447843761971],[1789459200000,0.9940034138660062],[1790337600000,1.0028804422067932],[1790424000000,1.0119866931041541],[1790568000000,1.0140230949187625],[1791259200000,1.0140230949187625],[1791345600000,1.0089529794441687],[1791633600000,1.0089529794441687],[1791820800000,1.0089529794441687]],"final":1.0089529794441687,"n":31,"skipped":6,"mdd":0.035052090990314366,"wins":12,"pf":1.1766917196586482,"avg_size":0.09493430159715312},"medio":{"equity":[[1753776000000,1.0],[1753804800000,0.99],[1755892800000,1.0076355036153744],[1755921600000,1.0076355036153744],[1756008000000,1.0116723832357313],[1756008000000,1.0116723832357313],[1756108800000,1.0017723832357313],[1758268800000,1.0017723832357313],[1759593600000,1.0060099840315302],[1759608000000,1.0099955715076028],[1760011200000,1.0056833687189723],[1760112000000,0.9955834130038963],[1760112000000,0.9955834130038963],[1768694400000,0.9995175245125908],[1776196800000,0.9895223492674649],[1776571200000,0.9809826868023077],[1778860800000,0.9746076515554876],[1778860800000,0.9647978246874644],[1778860800000,0.9549879978194413],[1787184000000,0.9602049650608528],[1788134400000,0.9506029154102443],[1788537600000,0.9420062461300545],[1788537600000,0.9420062461300545],[1788724800000,0.9586700397775314],[1789315200000,0.9761104837758549],[1789444800000,0.9761104837758549],[1789459200000,0.9797349952322604],[1789488000000,0.9701482948344851],[1789502400000,0.9605615944367097],[1790337600000,0.9777183413410732],[1790424000000,0.9953181096301765],[1790568000000,0.9992538896218089],[1791259200000,0.9992538896218089],[1791345600000,0.9892613507255908],[1791633600000,0.9892613507255908],[1791820800000,0.9892613507255908]],"final":0.9892613507255908,"n":35,"skipped":2,"mdd":0.06886234937327906,"wins":12,"pf":0.9149119691655606,"avg_size":0.1756149274175748},"alto":{"equity":[[1753776000000,1.0],[1753804800000,0.98],[1755892800000,1.0134686847716963],[1755921600000,1.0134686847716963],[1756008000000,1.0214608908887666],[1756008000000,1.0214608908887666],[1758268800000,1.0214608908887666],[1759593600000,1.0301026613279285],[1759608000000,1.0382304991524738],[1760011200000,1.0320246455705564],[1760112000000,1.0125598568765377],[1760112000000,1.0125598568765377],[1768694400000,1.0205581872714788],[1776196800000,1.000993629410323],[1776571200000,0.9846876093306856],[1778860800000,0.9757288523399036],[1778860800000,0.9571832540764846],[1778860800000,0.9374895018898709],[1787184000000,0.9446594274223088],[1788134400000,0.9257662388738627],[1788537600000,0.9140453526023316],[1788537600000,0.9140453526023316],[1788724800000,0.9376481215252892],[1789315200000,0.9717641340740696],[1789444800000,0.9717641340740696],[1789459200000,0.9778251671476087],[1790337600000,1.0120526335555597],[1790424000000,1.047884789387573],[1790568000000,1.0558978199948001],[1791259200000,1.0558978199948001],[1791345600000,1.0347798635949041],[1791633600000,1.0347798635949041],[1791820800000,1.0347798635949041]],"final":1.0347798635949041,"n":32,"skipped":5,"mdd":0.11961230829908853,"wins":12,"pf":1.192716804545857,"avg_size":0.3074029578689915}},"trades":[["SEI",1753776000000,0.34,1753804800000,0.3191815123560562,"stop",-0.06497842746464699,-1.0,0.06497842746464699,false],["ETC",1755878400000,23.15,1755892800000,25.51073152885859,"target",0.09757634044226338,1.781364001552975,0.054776194173227544,true],["SEI",1755878400000,0.3136,1755921600000,0.3148569138276553,"pareggio",0.0,0.0,0.06998498628911232,true],["IMX",1755878400000,0.572,1756008000000,0.5894957673986772,"trailing",0.02647288615754473,0.40776561821787133,0.06492182021928128,true],["ENA",1755878400000,0.7251,1756008000000,0.7280062124248496,"pareggio",0.0,0.0,0.08137327673312356,true],["BCH",1755878400000,596.0,1756108800000,572.7525583494672,"stop",-0.04284207887451896,-1.0,0.04284207887451896,true],["GRT",1758139200000,0.0957,1758268800000,0.09608356713426852,"pareggio",0.0,0.0,0.04240972868706938,true],["IMX",1759320000000,0.72,1759593600000,0.7466690547872614,"trailing",0.03290047221901604,0.4230103431391635,0.07777699234222346,false],["NEAR",1759320000000,2.804,1759608000000,2.880898183541974,"trailing",0.023322964333419405,0.3978535985588888,0.05862197657103063,true],["TRX",1759953600000,0.3416,1760011200000,0.3371118750717938,"stop",-0.01707810572750812,-1.0,0.01707810572750812,false],["DOGE",1759939200000,0.25323,1760112000000,0.2406261072622246,"stop",-0.05356583343323951,-1.0,0.05356583343323951,false],["BCH",1760054400000,580.0,1760112000000,582.3246492985971,"pareggio",0.0,0.0,0.034402837852651524,true],["GRT",1768608000000,0.04149,1768694400000,0.042596429714875594,"trailing",0.02256891027407315,0.3951563934582209,0.05711386845233801,false],["RNDR",1776124800000,1.921,1776196800000,1.8230593076195458,"stop",-0.05477270913440846,-1.0,0.05477270913440846,false],["ANKR",1775966400000,0.00526,1776571200000,0.00504,"tempo",-0.045650144577764507,-0.8543784631811681,0.05343082315978809,true],["BTC",1778774400000,81301.23,1778860800000,79505.23245017765,"stop",-0.025994486274169448,-1.0,0.025994486274169448,true],["TAO",1778774400000,305.6,1778860800000,290.31417349004096,"stop",-0.05381140486350311,-1.0,0.05381140486350311,false],["ENA",1778774400000,0.1232,1778860800000,0.11499118428480098,"stop",-0.0703560256416439,-1.0,0.0703560256416439,false],["BNB",1787155200000,616.65,1787184000000,632.6502442472665,"target",0.02185144631481717,1.2919340802097217,0.016913747109504218,true],["ARB",1787846400000,0.0915,1788134400000,0.08544382082028754,"stop",-0.06991554400873701,-1.0,0.06991554400873701,false],["ETH",1788451200000,2516.58,1788537600000,2435.2680094786347,"stop",-0.03617354477176138,-1.0,0.03617354477176138,true],["GRT",1788408000000,0.01674,1788537600000,0.016807094188376753,"pareggio",0.0,0.0,0.044746772122976064,false],["TAO",1788451200000,230.1,1788724800000,250.65558324401593,"target",0.08498462474237911,1.752971022636249,0.04848033632328552,true],["FIL",1789142400000,0.7972,1789315200000,0.8968641946666489,"target",0.1205267166085735,1.819233237159547,0.06625138225638261,true],["CELO",1789185600000,0.07761,1789315200000,0.0857194962955343,"target",0.10008120986403979,1.7862512764864937,0.05602862888411575,false],["BTC",1789142400000,77732.25,1789444800000,78043.80210420841,"pareggio",0.0,0.0,0.02868034698298172,true],["XRP",1789142400000,1.3745,1789459200000,1.4056338090267682,"trailing",0.01856856778165339,0.37807705529700436,0.0491131834674986,true],["FET",1789142400000,0.1688,1789488000000,0.15671957855758759,"stop",-0.07527279918556018,-1.0,0.07527279918556018,true],["ETC",1789142400000,7.74,1789502400000,7.20337922394831,"stop",-0.0730460957283865,-1.0,0.0730460957283865,false],["BNB",1789142400000,728.58,1789560000000,705.916486207776,"stop",-0.03497425633051299,-1.0,0.03497425633051299,true],["LINK",1790265600000,12.788,1790337600000,14.123314473855173,"target",0.10001047677146979,1.7861162682050062,0.05599326233783053,false],["MATIC",1790265600000,0.10586,1790424000000,0.12018602482612628,"target",0.1307976600782379,1.8322373485506822,0.0713868539912147,false],["ATOM",1790265600000,1.783,1790568000000,1.838806029067701,"trailing",0.02718198880397682,0.4097373884639291,0.06634002551214524,false],["OP",1790769600000,0.1329,1791259200000,0.13343266533066134,"pareggio",0.0,0.0,0.07729092165665097,true],["ENA",1790928000000,0.2495,1791345600000,0.2272633260776975,"stop",-0.09276117334252498,-1.0,0.09276117334252498,false],["FTM",1791518400000,0.04248,1791633600000,0.04265026052104208,"pareggio",0.0,0.0,0.08582514071088998,false],["CELO",1791576000000,0.0953,1791820800000,0.0956819639278557,"pareggio",0.0,0.0,0.060921151391331474,false]],"spike":{"on":{"n":19,"win_rate":0.3684210526315789,"avg_r":0.10393790265532048,"avg_ret":0.006968222966650696,"pf":1.5074454846018424,"avg_bars":15.157894736842104},"off":{"n":18,"win_rate":0.3333333333333333,"avg_r":-0.1315272767609169,"avg_ret":-0.0075969222963213935,"pf":0.7515023633618815,"avg_bars":11.88888888888889}},"phase":{"rialzo_debole":{"n":2,"win_rate":0.0,"avg_r":-0.5,"avg_ret":-0.032489213732323496,"pf":0.0,"avg_bars":18.0},"transizione":{"n":8,"win_rate":0.625,"avg_r":0.41274095520982756,"avg_ret":0.01991025382406772,"pf":4.717887524997705,"avg_bars":9.875},"rialzo_forte":{"n":27,"win_rate":0.2962962962962963,"avg_r":-0.09979994344163094,"avg_ret":-0.003653776596122838,"pf":0.8597442735265316,"avg_bars":14.333333333333334}},"phase_hv":{"on":{"n":13,"win_rate":0.46153846153846156,"avg_r":0.2699349773230912,"avg_ret":0.016960710501869706,"pf":2.2022211483204495,"avg_bars":9.0},"off":{"n":24,"win_rate":0.2916666666666667,"avg_r":-0.1625760640185667,"avg_ret":-0.009368233395488668,"pf":0.6418591897884462,"avg_bars":16.041666666666668}}},"forward":{"stats":{"n":0},"profiles":{"basso":{"equity":[],"final":1.0,"n":0,"skipped":0,"mdd":0.0,"wins":0,"pf":null,"avg_size":0.0},"medio":{"equity":[],"final":1.0,"n":0,"skipped":0,"mdd":0.0,"wins":0,"pf":null,"avg_size":0.0},"alto":{"equity":[],"final":1.0,"n":0,"skipped":0,"mdd":0.0,"wins":0,"pf":null,"avg_size":0.0}},"trades":[],"spike":{"on":{"n":0},"off":{"n":0}},"phase":{},"phase_hv":{"on":{"n":0},"off":{"n":0}}},"forward_open_n":0,"demo":false};
+
+(function () {
+  "use strict";
+  const $ = (s, r) => (r || document).querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  if (!D) { $("#app").innerHTML = '<div class="empty"><h3>Nessun dato</h3><p class="muted">Il programma non ha ancora prodotto dati. Eseguilo almeno una volta.</p></div>'; return; }
+
+  const BAR = 4 * 3600 * 1000;
+  const S = { cur: D.fx ? "EUR" : "USD", cap: D.capital_eur || 1000, prof: "medio", view: "forward", mine: [] };
+  try { Object.assign(S, JSON.parse(localStorage.getItem("sala-segnali-v1") || "{}")); } catch (e) {}
+  if (!D.fx) S.cur = "USD";
+  if (!D.profiles[S.prof]) S.prof = "medio";
+  if (S.view !== "forward" && S.view !== "backtest") S.view = "forward";
+  if (!Array.isArray(S.mine)) S.mine = [];
+  const save = () => { try { localStorage.setItem("sala-segnali-v1", JSON.stringify(S)); } catch (e) {} };
+  // toglie le operazioni segnate che i dati non conoscono piu' (chiuse da molto tempo)
+  (function pruneMine() {
+    const known = {};
+    (D.open || []).forEach(t => { known[t.id] = 1; });
+    ((D.forward && D.forward.trades) || []).forEach(t => { known[t[0] + "|" + t[1]] = 1; });
+    const keep = S.mine.filter(id => known[id]);
+    if (keep.length !== S.mine.length) { S.mine = keep; save(); }
+  })();
+
+  const nf = (x, d) => x.toLocaleString("it-IT", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const sgn = (x, d) => (x > 0 ? "+" : x < 0 ? "−" : "") + nf(Math.abs(x), d);
+  const pct = (x, d) => sgn(x * 100, d === undefined ? 1 : d) + "%";
+  const sym = () => (S.cur === "EUR" ? "€" : "$");
+  const conv = usd => (S.cur === "EUR" && D.fx ? usd / D.fx : usd);
+  const pdec = p => (p >= 1000 ? 0 : p >= 10 ? 2 : p >= 1 ? 3 : p >= 0.1 ? 4 : p >= 0.01 ? 5 : 6);
+  const price = usd => { const v = conv(usd); return sym() + nf(v, pdec(v)); };
+  const cash = (v, d) => sym() + nf(v, d === undefined ? 0 : d);
+  const dt = ms => new Date(ms).toLocaleString("it-IT", { timeZone: "Europe/Rome", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const dday = ms => new Date(ms).toLocaleDateString("it-IT", { timeZone: "Europe/Rome", day: "2-digit", month: "short" });
+  const REASON = { stop: "Stop loss", pareggio: "Pareggio", trailing: "Stop in guadagno", target: "Take profit", tempo: "Scaduto" };
+  const SRC = { kraken: "Kraken", binance: "Binance", coinbase: "Coinbase" };
+  const cs = (D.costs.fee + D.costs.slip) * 2;
+
+  // ---------- intestazione ----------
+  function head() {
+    $("#meta").textContent = "Aggiornato " + dt(D.generated) + " · candele a 4 ore · regole " + D.version;
+    if (D.demo) $("#demo").innerHTML = '<div class="demo">DATI DI PROVA. I numeri sono inventati e servono solo a mostrare come appare la pagina.</div>';
+    const m = D.market;
+    const regime = m.btc_ok === null || m.btc_ok === undefined
+      ? '<span class="pill nodata">Mercato: Bitcoin non verificabile</span>'
+      : m.btc_ok ? '<span class="pill signal">Mercato rialzista</span>' : '<span class="pill warn">Mercato non rialzista</span>';
+    $("#market").innerHTML = regime +
+      '<span class="small muted">' + (m.btc_ok === false ? "Bitcoin è sotto la sua media a 200 candele: nessun segnale. " : "") +
+      m.n_up + " monete su " + m.n_total + " in trend rialzista</span>";
+    const sp = D.coins.filter(c => c.spike);
+    if (sp.length) $("#market").innerHTML += '<span class="pill accent">Volume anomalo: ' + sp.map(c => esc(c.sym)).join(", ") + "</span>";
+  }
+
+  // ---------- operazioni in corso ----------
+  const E = D.entry_cfg || { max_bars: 3, up_atr: 0.5, down_atr: 1 };
+  const nowMs = () => (D.demo ? D.generated : Date.now());
+  const WHY = {
+    tempo: "Sono passate più di " + E.max_bars * 4 + " ore dal segnale.",
+    salito: "Il prezzo è già salito sopra la fascia: inseguirlo peggiora il rapporto tra rischio e guadagno.",
+    sceso: "Il prezzo è sceso sotto la fascia: il segnale si sta indebolendo.",
+    stop_spostato: "Il prezzo ha già raggiunto il livello in cui si sposta lo stop: è tardi per entrare."
+  };
+  // si puo' ancora entrare? Il controllo sul tempo si rifa qui, cosi' resta giusto anche se l'aggiornamento e' in ritardo.
+  function enterState(t) {
+    if (!t.enter_ok) return [false, t.enter_why || "tempo"];
+    if (nowMs() > t.enter_until) return [false, "tempo"];
+    return [true, "ok"];
+  }
+  const coinName = s => (D.coins.find(c => c.sym === s) || {}).name || "";
+
+  function openCard(t, mine) {
+    const P = D.profiles[S.prof];
+    const size = Math.min(P.risk / t.risk, P.max_size);
+    const amt = S.cap * size, loss = amt * t.risk;
+    const now = t.last / t.entry - 1;
+    let next;
+    if (t.stage === 0) next = "Se il prezzo sale a <b>" + price(t.be_at) + "</b>, sposta lo stop al pareggio (" + price(t.be_to) + ").";
+    else if (t.stage === 1) next = "Stop già al pareggio (" + price(t.sl) + "). Se il prezzo sale a <b>" + price(t.trail_at) + "</b>, sposta lo stop a " + price(t.trail_to) + ".";
+    else next = "Stop in guadagno a " + price(t.sl) + ". Ora resta solo il take profit.";
+    const expire = t.t_in + D.strat.max_hold * BAR;
+    const windowStep = mine ? "" :
+      '<div class="step"><b>Entra solo se il prezzo è tra ' + price(t.enter_lo) + " e " + price(t.enter_hi) + "</b>, ed entro le " + dt(t.enter_until) +
+      ". Fuori da questa fascia il segnale non vale più. Stop loss e take profit restano a questi prezzi anche se entri un po' sopra o sotto.</div>";
+    const button = mine
+      ? '<button type="button" class="btn ghost sm" data-unmine="' + esc(t.id) + '">Non sono entrato</button>'
+      : '<button type="button" class="btn" data-mine="' + esc(t.id) + '">Sono entrato</button>';
+    return '<article class="card' + (mine ? "" : " fresh") + '">' +
+      '<div class="card-top"><div><div class="sym">' + esc(t.sym) + '</div><div class="muted small">' + esc(coinName(t.sym)) + '</div></div>' +
+      '<span class="pill ' + (mine ? "wait" : "accent") + '">' + (mine ? "In corso" : "Da valutare") + "</span></div>" +
+      '<div class="grid2">' +
+      kv("Entrata", price(t.entry)) +
+      kv("Ora", price(t.last) + ' <span class="small ' + (now >= 0 ? "pos" : "neg") + '">' + pct(now) + "</span>") +
+      kv("Stop loss", price(t.stage ? t.sl : t.sl0) + ' <span class="small muted">' + pct(((t.stage ? t.sl : t.sl0) / t.entry) - 1) + "</span>") +
+      kv("Take profit", price(t.tp) + ' <span class="small muted">' + pct(t.tp / t.entry - 1) + "</span>") +
+      kv("Quota consigliata", nf(size * 100, 0) + "% = " + cash(amt)) +
+      kv("Perdita massima", "≈ " + cash(loss, loss < 10 ? 1 : 0)) +
+      "</div>" + windowStep +
+      '<div class="step">' + next + "</div>" +
+      (t.spike ? '<div class="step warnbox"><b>Volume anomalo</b> al momento del segnale: ' + nf(t.spike_ratio, 1) + " volte il normale. Segnale da guardare con più attenzione.</div>" : "") +
+      "<details><summary>Perché questo segnale</summary><ul>" + t.why.map(w => "<li>" + esc(w) + "</li>").join("") + "</ul></details>" +
+      '<div class="small muted">Candela chiusa il ' + dt(t.t_in) + ". Se entro il " + dt(expire) + " non ha toccato stop o take profit, chiudi la posizione." + (t.phase ? " Fase di mercato al segnale: " + esc((D.phase_names || {})[t.phase] || t.phase) + "." : "") + "</div>" +
+      button + "</article>";
+  }
+  const kv = (k, v) => '<div class="kv"><span class="k">' + k + '</span><span class="v num">' + v + "</span></div>";
+
+  // segnale non piu' entrabile: riga compatta
+  function lateRow(t) {
+    const why = enterState(t)[1];
+    const now = t.last / t.entry - 1;
+    return '<div class="row"><div class="l"><b>' + esc(t.sym) + '</b> <span class="muted small">' + esc(coinName(t.sym)) + "</span>" +
+      '<div class="small muted num">Segnale del ' + dt(t.t_in) + " a " + price(t.entry) + " · ora " + price(t.last) + " (" + pct(now) + ")</div></div>" +
+      '<div class="rt"><button type="button" class="btn ghost sm" data-mine="' + esc(t.id) + '">Sono entrato</button></div>' +
+      '<div class="st"><span class="pill wait">Non entrabile</span><span>' + (WHY[why] || "") + "</span></div></div>";
+  }
+
+  // operazione segnata da me, gia' chiusa: mostra l'esito
+  function closedRow(t) {
+    const id = t[0] + "|" + t[1], good = t[6] >= 0;
+    const act = t[5] === "tempo" ? "Il tempo massimo è scaduto: chiudi la posizione se è ancora aperta." :
+      t[5] === "target" ? "Take profit raggiunto: controlla che la tua posizione sia chiusa." :
+      "Stop raggiunto: controlla che la tua posizione sia chiusa.";
+    return '<div class="row"><div class="l"><b>' + esc(t[0]) + '</b> <span class="muted small">' + esc(coinName(t[0])) + "</span>" +
+      '<div class="small muted num">Entrata ' + dt(t[1]) + " a " + price(t[2]) + " · uscita " + dt(t[3]) + " a " + price(t[4]) + "</div></div>" +
+      '<div class="rt"><div class="num ' + (good ? "pos" : "neg") + '"><b>' + pct(t[6]) + '</b></div><button type="button" class="btn ghost sm" data-unmine="' + esc(id) + '">Rimuovi</button></div>' +
+      '<div class="st"><span class="pill ' + (good ? "signal" : "nodata") + '">' + (REASON[t[5]] || esc(t[5])) + "</span><span>" + act + "</span></div></div>";
+  }
+
+  function openSection() {
+    const mineSet = {};
+    S.mine.forEach(id => { mineSet[id] = 1; });
+    const open = D.open.slice().sort((a, b) => b.t_in - a.t_in);
+    const fresh = [], late = [], mineOpen = [];
+    open.forEach(t => { if (mineSet[t.id]) mineOpen.push(t); else if (enterState(t)[0]) fresh.push(t); else late.push(t); });
+    const mineClosed = ((D.forward && D.forward.trades) || []).filter(t => mineSet[t[0] + "|" + t[1]]).reverse();
+
+    let g1;
+    if (fresh.length) {
+      g1 = '<div><h3 class="sub">Da valutare ora <span class="pill accent">' + fresh.length + '</span></h3><p class="small muted">Segnali ancora entrabili. Se entri, tocca «Sono entrato».</p><div class="cards">' + fresh.map(t => openCard(t, false)).join("") + "</div></div>";
+    } else {
+      const why = D.market.btc_ok === false ? "Bitcoin è sotto la sua media a 200 candele, quindi con queste regole non si compra nulla." :
+        "Servono insieme: trend rialzista, trend con forza, una ripartenza dopo un calo e volume sopra la media.";
+      g1 = '<div class="empty"><h3>Nessun segnale da valutare adesso</h3><p class="muted">' + why +
+        (late.length ? " Gli ultimi segnali non sono più entrabili: li trovi in fondo a questa sezione." : "") +
+        " Aspettare fa parte delle regole: la pagina si aggiorna da sola ogni 4 ore.</p></div>";
+    }
+    let g2 = "";
+    if (mineOpen.length || mineClosed.length) {
+      g2 = '<div><h3 class="sub">Le mie operazioni <span class="pill wait">' + (mineOpen.length + mineClosed.length) + '</span></h3><p class="small muted">Quelle che hai segnato con «Sono entrato». Restano salvate solo su questo telefono.</p>' +
+        (mineOpen.length ? '<div class="cards">' + mineOpen.map(t => openCard(t, true)).join("") + "</div>" : "") +
+        (mineClosed.length ? '<div class="list" style="margin-top:12px">' + mineClosed.map(closedRow).join("") + "</div>" : "") + "</div>";
+    }
+    let g3 = "";
+    if (late.length) {
+      g3 = '<details class="late"><summary>Non più entrabili (' + late.length + ')</summary><p class="small muted" style="margin-top:6px">Segnali passati: non conviene più entrare. Se eri già dentro, tocca «Sono entrato».</p><div class="list">' + late.map(lateRow).join("") + "</div></details>";
+    }
+    return '<section><h2>Segnali e operazioni in corso</h2><div class="groups">' + g1 + g2 + g3 + "</div></section>";
+  }
+
+  // ---------- simulatore ----------
+  function chart(points) {
+    if (!points || points.length < 2) return "";
+    const W = 640, H = 230, L = 58, R = 14, T = 14, B = 26;
+    const vals = points.map(p => S.cap * p[1]);
+    let lo = Math.min.apply(null, vals.concat([S.cap])), hi = Math.max.apply(null, vals.concat([S.cap]));
+    if (hi - lo < S.cap * 0.01) { hi += S.cap * 0.01; lo -= S.cap * 0.01; }
+    const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const t0 = points[0][0], t1 = points[points.length - 1][0];
+    const x = t => L + (W - L - R) * (t1 === t0 ? 0 : (t - t0) / (t1 - t0));
+    const y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+    const path = points.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(S.cap * p[1]).toFixed(1)).join("");
+    const area = path + "L" + x(t1).toFixed(1) + " " + (H - B) + "L" + x(t0).toFixed(1) + " " + (H - B) + "Z";
+    let g = "";
+    for (let k = 0; k < 4; k++) {
+      const v = lo + (hi - lo) * k / 3;
+      g += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
+        '<text class="axis" x="' + (L - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + sym() + nf(v, 0) + "</text>";
+    }
+    const last = points[points.length - 1];
+    return '<div class="chart"><svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Andamento del capitale simulato">' + g +
+      '<line class="base" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(S.cap).toFixed(1) + '" y2="' + y(S.cap).toFixed(1) + '"/>' +
+      '<path class="area" d="' + area + '"/><path class="line" d="' + path + '"/>' +
+      '<circle class="dot" cx="' + x(last[0]).toFixed(1) + '" cy="' + y(S.cap * last[1]).toFixed(1) + '" r="4.5"/>' +
+      '<text class="axis" x="' + L + '" y="' + (H - 7) + '">' + dday(t0) + '</text>' +
+      '<text class="axis" x="' + (W - R) + '" y="' + (H - 7) + '" text-anchor="end">' + dday(t1) + "</text></svg></div>";
+  }
+
+  function tile(k, v, s, cls) { return '<div class="tile"><span class="k">' + k + '</span><span class="v num ' + (cls || "") + '">' + v + '</span><span class="s">' + (s || "") + "</span></div>"; }
+
+  const PH = {
+    rialzo_forte: ["signal", "Bitcoin sale con una direzione chiara. È la fase per cui sono pensate queste regole, che seguono il trend. I segnali sono ammessi."],
+    rialzo_debole: ["signal", "Bitcoin è sopra la media a 200 candele ma senza una spinta netta. I segnali sono ammessi."],
+    transizione: ["warn", "Le medie di Bitcoin si contraddicono: il mercato sta cambiando direzione oppure è fermo. I segnali sono ammessi solo se Bitcoin è sopra la media a 200 candele."],
+    ribasso_debole: ["warn", "Bitcoin è sotto la media a 200 candele ma senza una discesa netta. I segnali sono bloccati."],
+    ribasso_forte: ["nodata", "Bitcoin scende con una direzione chiara. I segnali sono bloccati."]
+  };
+  const PH_ORDER = ["rialzo_forte", "rialzo_debole", "transizione", "ribasso_debole", "ribasso_forte"];
+
+  function phaseSection() {
+    const m = D.market, names = D.phase_names || {};
+    if (!m.phase) {
+      return '<section><h2>Fase di mercato</h2><div class="empty"><h3>Non disponibile</h3><p class="muted">I dati di Bitcoin non sono verificabili da due fonti, quindi la fase non viene valutata e non ci sono segnali.</p></div></section>';
+    }
+    const info = PH[m.phase] || ["wait", ""];
+    return '<section><h2>Fase di mercato</h2><div class="phase"><div class="top"><span class="name">' + esc(names[m.phase] || m.phase) + "</span>" +
+      '<span class="pill ' + info[0] + '">' + (m.btc_ok ? "Segnali ammessi" : "Segnali bloccati") + "</span>" +
+      (m.phase_hv ? '<span class="pill accent">Volatilità alta</span>' : "") + "</div>" +
+      '<p class="small muted">' + info[1] + "</p>" +
+      '<div class="tiles">' +
+      tile("Bitcoin e media a 200", sgn(m.btc_dist * 100, 1) + "%", "distanza dalla media a 200 candele", m.btc_dist >= 0 ? "pos" : "neg") +
+      tile("Forza del trend", nf(m.btc_adx, 0), "ADX di Bitcoin, sopra " + ((D.phase_cfg || {}).adx_strong || 20) + " il trend è chiaro") +
+      tile("Volatilità", m.phase_hv ? "Alta" : "Normale", "una candela si muove in media del " + nf(m.btc_atr_pct * 100, 1) + "%") +
+      tile("Ampiezza", m.n_up + " su " + m.n_total, "monete in trend rialzista") +
+      "</div></div></section>";
+  }
+
+  function spikeCompare(B) {
+    if (!B.spike || !B.spike.on.n) return "";
+    const a = B.spike.on, b = B.spike.off;
+    const row = (lab, st) => st.n
+      ? "<tr><td>" + lab + '</td><td class="r num">' + st.n + '</td><td class="r num">' + nf(st.win_rate * 100, 0) + '%</td><td class="r num">' + sgn(st.avg_r, 2) + "</td></tr>"
+      : "<tr><td>" + lab + '</td><td class="r num">0</td><td class="r">—</td><td class="r">—</td></tr>';
+    const few = Math.min(a.n, b.n) < 20 ? " Pochi trade per confrontare: non trarre conclusioni." : "";
+    return '<h2 style="margin-top:16px">Spia volume</h2><div class="scroll"><table class="compact"><thead><tr><th>Segnali</th><th class="r">Trade</th><th class="r">Vincenti</th><th class="r">R medio</th></tr></thead><tbody>' +
+      row("Con volume anomalo", a) + row("Senza", b) + '</tbody></table></div><p class="small muted" style="margin:8px 0 0">Solo informativo: la spia non cambia i segnali.' + few + "</p>";
+  }
+
+  function phaseCompare(B) {
+    const ph = B.phase || {}, names = D.phase_names || {};
+    const keys = PH_ORDER.filter(k => ph[k] && ph[k].n);
+    if (!keys.length) return "";
+    const row = (lab, st) => "<tr><td>" + lab + '</td><td class="r num">' + st.n + '</td><td class="r num">' + nf(st.win_rate * 100, 0) + '%</td><td class="r num">' + sgn(st.avg_r, 2) + "</td></tr>";
+    let rows = keys.map(k => row(esc(names[k] || k), ph[k])).join("");
+    const hv = B.phase_hv;
+    if (hv && hv.on.n) rows += row("Volatilità alta", hv.on);
+    if (hv && hv.off.n) rows += row("Volatilità normale", hv.off);
+    const few = keys.some(k => ph[k].n < 20) ? " Pochi trade in alcune fasi: non trarre conclusioni." : "";
+    return '<h2 style="margin-top:16px">Per fase di mercato</h2><div class="scroll"><table class="compact"><thead><tr><th>Al momento del segnale</th><th class="r">Trade</th><th class="r">Vincenti</th><th class="r">R medio</th></tr></thead><tbody>' + rows +
+      '</tbody></table></div><p class="small muted" style="margin:8px 0 0">Solo informativo. Con il filtro su Bitcoin non ci sono segnali nelle fasi di ribasso.' + few + "</p>";
+  }
+
+  function simSection() {
+    const B = D[S.view], pf = B.profiles[S.prof], st = B.stats;
+    const tabs = '<div class="tabs" role="group" aria-label="Tipo di prova">' +
+      '<button type="button" data-view="forward" aria-pressed="' + (S.view === "forward") + '">Test in avanti</button>' +
+      '<button type="button" data-view="backtest" aria-pressed="' + (S.view === "backtest") + '">Backtest sul passato</button></div>';
+    let note, body;
+    if (S.view === "forward") {
+      const need = 50, n = st.n || 0;
+      note = "Conta solo i segnali nati dopo il " + dt(D.forward_start) + ", con le regole di oggi, senza ritocchi. È la prova più onesta." +
+        (D.forward_open_n ? " Trade ancora aperti: " + D.forward_open_n + "." : "");
+      const bar = '<div class="small muted">Trade chiusi: <b>' + n + "</b> su " + need + ' (per fidarsi meglio ne servono 50-100)</div><div class="bar"><i style="width:' + Math.min(100, n / need * 100) + '%"></i></div>';
+      body = bar;
+    } else {
+      note = "Rifa tutti i segnali che le stesse regole avrebbero dato nel periodo coperto dai dati (fino a " + Math.round(D.history_days.max) + " giorni). Mostra com'è andata, non come andrà. I prezzi per il backtest arrivano da una sola fonte.";
+      body = "";
+    }
+    let res;
+    if (!pf.n) {
+      res = '<div class="empty"><h3>Ancora nessuna operazione chiusa</h3><p class="muted">' +
+        (S.view === "forward" ? "Il test in avanti è partito da poco. Quando un trade si chiude, qui compaiono i risultati." : "Con queste regole non ci sono stati segnali nel periodo.") + "</p></div>";
+    } else {
+      const ret = pf.final - 1;
+      res = '<div class="tiles">' +
+        tile("Capitale simulato", cash(S.cap * pf.final), pct(ret) + " su " + cash(S.cap), ret >= 0 ? "pos" : "neg") +
+        tile("Operazioni", String(pf.n), pf.skipped ? pf.skipped + " saltate (troppe aperte insieme)" : "tutte seguite") +
+        tile("Vincenti", nf(pf.wins / pf.n * 100, 0) + "%", pf.wins + " su " + pf.n) +
+        tile("Calo massimo", "−" + nf(pf.mdd * 100, 1) + "%", "dal punto più alto", pf.mdd > 0.2 ? "neg" : "") +
+        tile("Profit factor", pf.pf === null ? "—" : nf(pf.pf, 2), "guadagni diviso perdite (sopra 1 = in attivo)") +
+        tile("Risultato medio", st.avg_r === undefined ? "—" : nf(st.avg_r, 2) + " R", "1 R = la perdita massima prevista") + "</div>" + chart(pf.equity);
+      const rows = B.trades.slice(-15).reverse().map(t =>
+        "<tr><td><b>" + esc(t[0]) + "</b>" + (t[9] ? ' <span class="pill accent">volume</span>' : "") + "</td><td>" + dt(t[1]) + "</td><td>" + (REASON[t[5]] || esc(t[5])) + " " + dday(t[3]) + '</td><td class="r num ' + (t[6] >= 0 ? "pos" : "neg") + '">' + pct(t[6]) + '</td><td class="r num">' + sgn(t[7], 2) + "</td></tr>").join("");
+      res += spikeCompare(B) + phaseCompare(B) + '<h2 style="margin-top:16px">Ultime operazioni</h2><div class="scroll"><table class="compact"><thead><tr><th>Moneta</th><th>Entrata</th><th>Uscita</th><th class="r">Risultato</th><th class="r">R</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
+        '<p class="small muted" style="margin-top:8px">Risultati al netto dei costi (' + nf(cs * 100, 2) + "% tra andata e ritorno). Il capitale simulato conta solo i trade chiusi.</p>";
+    }
+    return "<section><h2>Simulatore</h2>" + tabs + '<p class="small muted" style="margin-bottom:10px">' + note + "</p>" + body + res + "</section>";
+  }
+
+  // ---------- monete ----------
+  const KIND_ORDER = { signal: 0, wait: 1, warn: 2, nodata: 3 };
+  const KIND_LABEL = { signal: "Segnale", wait: "Attesa", warn: "Fonti", nodata: "Dati" };
+  function coinsSection() {
+    const cs2 = D.coins.slice().sort((a, b) => (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || ((b.spike ? 1 : 0) - (a.spike ? 1 : 0)));
+    const rows = cs2.map(c => {
+      const right = c.price === undefined ? "" :
+        '<div class="num"><b>' + price(c.price) + '</b></div><div class="small num ' + (c.chg >= 0 ? "pos" : "neg") + '">' + pct(c.chg) + " in 24h</div>";
+      const srcs = c.srcs.length ? c.srcs.map(s => SRC[s] || s).join(" + ") : "nessuna fonte";
+      return '<div class="row"><div class="l"><b>' + esc(c.sym) + '</b> <span class="muted small">' + esc(c.name) + '</span>' + (c.spike ? ' <span class="pill accent">Volume anomalo ' + nf(c.spike_ratio, 1) + '×</span>' : "") + '<div class="small muted">' + srcs + '</div></div><div class="rt">' + right + "</div>" +
+        '<div class="st"><span class="pill ' + c.kind + '">' + KIND_LABEL[c.kind] + "</span><span>" + esc(c.status) + "</span></div></div>";
+    }).join("");
+    return "<section><h2>Monete seguite</h2><div class=\"list\">" + rows + "</div></section>";
+  }
+
+  // ---------- guida ----------
+  function guide() {
+    const s = D.strat, pr = D.profiles, F = D.flag || { ratio: 3, base: 20, recent: 3 }, P = D.phase_cfg || { adx_strong: 20, vol_window: 180, vol_pct: 0.8 };
+    return '<section><h2>Come funziona</h2><div class="guide">' +
+      "<details><summary>Cosa fa questa pagina</summary><div class=\"body\"><p>Ogni 4 ore, quando si chiude una candela, il programma scarica i prezzi di " + D.market.n_total + " crypto da più exchange, li confronta, calcola gli indicatori e controlla se c'è un'occasione di acquisto. Non compra e non vende nulla al posto tuo: ti dice cosa fare e dove mettere stop loss e take profit.</p><p>Un segnale vale solo se almeno due fonti indipendenti danno lo stesso prezzo. Se discordano, o ce n'è una sola, la moneta resta in sola osservazione.</p></div></details>" +
+      "<details><summary>Quando scatta un segnale</summary><div class=\"body\"><p>Devono essere vere tutte e cinque, sull'ultima candela chiusa:</p><ol style=\"margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px\">" +
+      "<li>Bitcoin è sopra la sua media a " + s.ema_slow + " candele (il mercato nel suo insieme sale).</li>" +
+      "<li>La moneta è in trend rialzista: media a " + s.ema_fast + " sopra media a " + s.ema_slow + ", prezzo sopra entrambe.</li>" +
+      "<li>Il trend ha forza: ADX almeno " + s.adx_min + " e compratori in vantaggio.</li>" +
+      "<li>Dopo un calo (RSI sceso a " + s.rsi_pullback + " o meno nelle ultime " + s.pb_lookback + " candele) il prezzo riparte: RSI sale sopra " + s.rsi_resume + ".</li>" +
+      "<li>Il volume è almeno nella media recente.</li></ol><p>Si compra solo al rialzo, come su Revolut X: niente vendite allo scoperto.</p></div></details>" +
+      "<details><summary>Finestra d'ingresso e tasto «Sono entrato»</summary><div class=\"body\">" +
+      "<p>Un segnale vale solo per poco. Nasce alla chiusura di una candela e si può usare per al massimo " + E.max_bars * 4 + " ore. In più il prezzo deve restare in una fascia attorno a quello del segnale: non oltre " + nf(E.up_atr, 1) + " ATR sopra (inseguire un rialzo già partito peggiora il rapporto tra rischio e guadagno) e non oltre " + nf(E.down_atr, 1) + " ATR sotto (il segnale si sta indebolendo).</p>" +
+      "<p>Passata la finestra, o uscito dalla fascia, il segnale va tra «Non più entrabili» e non devi fare nulla. Se te ne accorgi tardi non hai perso un'occasione da rincorrere: le regole non prevedono di entrare in ritardo.</p>" +
+      "<p>Se entri, tocca «Sono entrato»: il segnale passa in «Le mie operazioni», dove vedi stop, take profit e quando spostare lo stop. Quando il trade si chiude compare l'esito: controlla la tua posizione e premi Rimuovi.</p>" +
+      "<p>Le tue operazioni sono salvate solo nel browser di questo telefono. Se aggiungi la pagina alla Home, usa sempre l'icona: aprendo lo stesso link da Safari le operazioni segnate non compaiono.</p>" +
+      "<p>I numeri del simulatore non dipendono da cosa tocchi: il test in avanti conta tutti i segnali, come se si entrasse sempre al prezzo di chiusura della candela. Entrare in ritardo, dentro la fascia, dà un risultato un po' diverso.</p></div></details>" +
+      "<details><summary>Gli indicatori in parole semplici</summary><div class=\"body\"><dl style=\"margin:0\">" +
+      "<dt>Media mobile (EMA)</dt><dd>Il prezzo medio recente, con più peso agli ultimi giorni. Se la media a 50 candele (circa 8 giorni) sta sopra quella a 200 (circa 33 giorni), la moneta sta salendo da un po'.</dd>" +
+      "<dt>RSI</dt><dd>Un numero da 0 a 100 che dice se la moneta è scesa o salita troppo in fretta. Dopo un calo, quando risale oltre " + s.rsi_resume + " vuol dire che i compratori sono tornati.</dd>" +
+      "<dt>ADX</dt><dd>Misura la forza del trend, non la direzione. Sopra " + s.adx_min + " il movimento ha una direzione chiara; sotto è un mercato confuso.</dd>" +
+      "<dt>ATR</dt><dd>Di quanto si muove in media una candela. Serve a mettere stop e take profit alla distanza giusta per ogni moneta: più è nervosa, più sono larghi.</dd>" +
+      "<dt>Volume</dt><dd>Quanto si scambia. Un movimento con volumi sopra la media è più credibile.</dd></dl></div></details>" +
+      "<details><summary>La spia dei volumi</summary><div class='body'>" +
+      "<p>La spia si accende su una moneta quando, in una delle ultime " + F.recent + " candele (" + F.recent * 4 + " ore), il volume è almeno " + nf(F.ratio, 0) + " volte il normale. Il normale è la mediana, cioè il valore di mezzo, dei volumi delle " + F.base + " candele precedenti: così un vecchio picco non falsa il confronto.</p>" +
+      "<p>Non è la quinta condizione dei segnali. Quella chiede solo che il volume sia almeno nella media, e lascia passare senza avviso anche un volume dieci volte più alto. La spia serve proprio a vedere i picchi.</p>" +
+      "<p>Un picco può voler dire molto interesse reale, una notizia, oppure un rialzo spinto che poi rientra. Da solo non dice quale dei tre. Per questo la spia non blocca nulla: ti avvisa e basta. Nel Simulatore vedi come sono andati i segnali con e senza spia. Se vuoi trasformarla in una regola, conta solo ciò che emerge dal test in avanti, non dal backtest.</p>" +
+      "<p>Il volume è quello della fonte principale di ogni moneta, non la somma di più exchange.</p></div></details>" +
+      "<details><summary>La fase di mercato</summary><div class='body'>" +
+      "<p>Si guarda Bitcoin, che di solito trascina le altre monete. Tre misure: la direzione (prezzo e medie a " + s.ema_fast + " e " + s.ema_slow + " candele), la forza del trend (ADX, chiaro da " + P.adx_strong + " in su) e la volatilità (quanto si muove una candela rispetto agli ultimi " + Math.round(P.vol_window / 6) + " giorni: alta se è tra il " + nf((1 - P.vol_pct) * 100, 0) + "% più alto).</p>" +
+      "<p>Ne escono cinque fasi: rialzo con forza, rialzo debole, transizione (le medie si contraddicono), ribasso debole e ribasso con forza. In più la volatilità può essere alta o normale. L'ampiezza dice quante delle " + D.market.n_total + " monete sono in trend rialzista: se Bitcoin sale ma poche altre lo seguono, il movimento è concentrato su poche monete.</p>" +
+      "<p>Una parte è già una regola: i segnali scattano solo se Bitcoin è sopra la media a " + s.ema_slow + " candele. Tutto il resto è informativo e non cambia i segnali. Nel Simulatore vedi come sono andati i segnali in ciascuna fase.</p>" +
+      "<p>È una lettura approssimativa. L'ADX, per esempio, può dare forza anche a oscillazioni molto regolari.</p></div></details>" +
+      "<details><summary>Stop loss, take profit e come spostare lo stop</summary><div class=\"body\">" +
+      "<p><b>Stop loss</b>: " + s.sl_atr + " ATR sotto l'entrata. Se il prezzo ci arriva, esci con la perdita prevista.</p>" +
+      "<p><b>Take profit</b>: " + s.tp_atr + " ATR sopra l'entrata, cioè il doppio della distanza dello stop.</p>" +
+      "<p><b>Se va bene</b>: a +" + nf(s.be_trigger, 1) + " ATR sposta lo stop al pareggio (entrata più i costi). A +" + nf(s.trail_trigger, 1) + " ATR sposta lo stop a +" + nf(s.trail_lock, 0) + " ATR sopra l'entrata. Così un trade che parte bene difficilmente chiude in perdita.</p>" +
+      "<p><b>Se non succede nulla</b>: dopo " + s.max_hold / 6 + " giorni chiudi la posizione.</p></div></details>" +
+      "<details><summary>Quanto investire per ogni segnale</summary><div class=\"body\"><p>Scegli quanto sei disposto a perdere per operazione: " +
+      Object.keys(pr).map(k => k + " " + nf(pr[k].risk * 100, 1) + "% del capitale").join(", ") +
+      ". La quota si ricava dividendo quel rischio per la distanza dello stop, con un tetto per ogni posizione (" +
+      Object.keys(pr).map(k => k + " " + nf(pr[k].max_size * 100, 0) + "%").join(", ") + ") e un massimo di posizioni aperte insieme (" +
+      Object.keys(pr).map(k => pr[k].max_pos).join(" / ") + "). Non si usa mai più del capitale che hai.</p></div></details>" +
+      "<details><summary>Limiti da tenere presenti</summary><div class=\"body\">" +
+      "<p>Nessuno strumento può garantire guadagni. Il backtest mostra cosa sarebbe successo in passato, il futuro può essere diverso. Questa pagina non è una consulenza finanziaria.</p>" +
+      "<p>Le regole sono state fissate prima di vedere i dati e non vengono ritoccate. Se le cambi dopo aver guardato i risultati, il backtest smette di essere una prova: conta solo il test in avanti.</p>" +
+      "<p>Costi ipotizzati: " + nf(D.costs.fee * 100, 2) + "% di commissione e " + nf(D.costs.slip * 100, 2) + "% di scostamento di prezzo per ogni operazione (circa " + nf(cs * 100, 2) + "% tra andata e ritorno). Controlla le commissioni reali su Revolut X.</p>" +
+      "<p>Si ipotizza l'entrata al prezzo di chiusura della candela. Se nella stessa candela il prezzo tocca sia stop sia take profit, si assume che sia scattato lo stop. I prezzi degli exchange possono differire un po' da quelli di Revolut X.</p></div></details>" +
+      "</div></section>";
+  }
+
+  function foot() {
+    const src = Object.keys(D.sources).map(k => (SRC[k] || k) + " " + D.sources[k].ok + "/" + D.market.n_total + (D.sources[k].note ? " (" + esc(D.sources[k].note) + ")" : "")).join(" · ");
+    const h = D.history_days;
+    return '<footer class="foot"><div>Fonti raggiunte in questo aggiornamento: ' + src + ".</div>" +
+      "<div>Monete con segnali abilitati: " + D.market.n_checked + " su " + D.market.n_total + ". Storico: " + Math.round(h.min) + "-" + Math.round(h.max) + " giorni.</div></footer>";
+  }
+
+  function render() {
+    $("#app").innerHTML = '<div class="wrap" style="gap:28px">' + openSection() + phaseSection() + simSection() + coinsSection() + guide() + foot() + "</div>";
+  }
+
+  function syncControls() {
+    document.querySelectorAll("[data-cur]").forEach(b => {
+      b.setAttribute("aria-pressed", String(b.dataset.cur === S.cur));
+      if (b.dataset.cur === "EUR" && !D.fx) { b.disabled = true; b.title = "Cambio euro/dollaro non disponibile"; }
+    });
+    $("#cap").value = S.cap;
+    $("#prof").value = S.prof;
+  }
+
+  document.querySelectorAll("[data-cur]").forEach(b => b.addEventListener("click", () => { if (b.disabled) return; S.cur = b.dataset.cur; save(); syncControls(); render(); }));
+  $("#cap").addEventListener("input", e => { const v = parseFloat(String(e.target.value).replace(",", ".")); if (isFinite(v) && v >= 0) { S.cap = v; save(); render(); } });
+  $("#prof").addEventListener("change", e => { S.prof = e.target.value; save(); render(); });
+  $("#app").addEventListener("click", e => {
+    const t = e.target;
+    let b = t.closest("[data-view]");
+    if (b) { S.view = b.dataset.view; save(); render(); return; }
+    b = t.closest("[data-mine]");
+    if (b) { const id = b.dataset.mine; if (S.mine.indexOf(id) < 0) S.mine.push(id); save(); render(); return; }
+    b = t.closest("[data-unmine]");
+    if (b) { const id = b.dataset.unmine; S.mine = S.mine.filter(x => x !== id); save(); render(); }
+  });
+
+  head();
+  syncControls();
+  render();
+})();
+</script>
+</body>
+</html>
